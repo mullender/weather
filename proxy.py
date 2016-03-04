@@ -6,6 +6,9 @@ import httplib
 import logging
 import subprocess
 import sys
+from pprint import pprint
+
+from AcuLink import AcuLink
 
 PORT = 80
 
@@ -18,13 +21,13 @@ class ServerHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         self.make_http_request("GET", url)
 
     def do_POST(self):
-        logging.warning("======= POST STARTED =======")
-        logging.warning(self.headers)
+        # logging.warning("======= POST STARTED =======")
+        # logging.warning(self.headers)
         length = int(self.headers.getheader('content-length'))
         data = self.rfile.read(length)
-        logging.warning("======= POST VALUES =======")
-        logging.warning(data)
-        logging.warning("\n")
+        # logging.warning("======= POST VALUES =======")
+        # logging.warning(data)
+        # logging.warning("\n")
         url = "http://" + self.headers.getheader('host') + self.path
         self.make_http_request("POST", url, data)
         # SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
@@ -35,18 +38,18 @@ class ServerHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         for line in out.split("\n"):
             if found:
                 ip = line.split(" ")[1]
-                print "returning ip", ip
+                # print "returning ip", ip
                 return ip
             if line.startswith(host) and "canonical name" in line:
                 host = line.split(" ")[-1][:-1]
             if line.endswith(host):
                 found = True
-        print lines
+        print out
         print "returning input", host
         return host
 
     def exec_command(self, command):
-        print "====>", command
+        # print "====>", command
         proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (out, error) = proc.communicate()
         if error:
@@ -78,6 +81,8 @@ class ServerHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(content)
         self.wfile.close()
+        if aculink.can_handle(url, data):
+            pprint(aculink.handle(url, data))
 
 
 class Server:
@@ -95,13 +100,15 @@ class Server:
 
 
 if __name__ == '__main__':
-    handler = ServerHandler
-    server = Server(PORT, handler)
+    aculink = AcuLink()
+    server_handler = ServerHandler
+    server = Server(PORT, server_handler)
 
     try:
         server.main_loop()
     except KeyboardInterrupt:
         print "Ctrl C - Stopping server"
+        server.shutdown()
         sys.exit(1)
     finally:
         server.shutdown()
